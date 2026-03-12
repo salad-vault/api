@@ -17,6 +17,15 @@ pub fn open_database(path: &Path) -> Result<Connection, rusqlite::Error> {
     Ok(conn)
 }
 
+/// Open an in-memory database for testing purposes.
+#[cfg(test)]
+pub fn open_database_in_memory() -> Result<Connection, rusqlite::Error> {
+    let conn = Connection::open_in_memory()?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;",)?;
+    run_migrations(&conn)?;
+    Ok(conn)
+}
+
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         "

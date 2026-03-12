@@ -29,14 +29,25 @@ FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Utilisateur non-root pour limiter la surface d'attaque
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
 
 # Volume pour la base de données SQLite (persistance entre redémarrages)
 VOLUME ["/data"]
+RUN chown appuser:appuser /data
 
 COPY --from=builder /app/target/release/saladvault-api /usr/local/bin/saladvault-api
 
+USER appuser
+
 EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
 CMD ["saladvault-api"]
