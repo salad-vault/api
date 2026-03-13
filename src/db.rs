@@ -1,29 +1,54 @@
 use std::path::Path;
 
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::Connection;
 
-/// Open (or create) the server SQLite database and run migrations.
-pub fn open_database(path: &Path) -> Result<Connection, rusqlite::Error> {
-    let conn = Connection::open(path)?;
+/// Connection pool type used throughout the API.
+pub type DbPool = Pool<SqliteConnectionManager>;
 
-    // Enable WAL mode and foreign keys
-    conn.execute_batch(
-        "PRAGMA journal_mode = WAL;
-         PRAGMA foreign_keys = ON;",
-    )?;
+/// Initializer that sets PRAGMAs on every new connection.
+#[derive(Debug)]
+struct SqliteInit;
 
-    run_migrations(&conn)?;
-
-    Ok(conn)
+impl r2d2::CustomizeConnection<Connection, rusqlite::Error> for SqliteInit {
+    fn on_acquire(&self, conn: &mut Connection) -> Result<(), rusqlite::Error> {
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA foreign_keys = ON;",
+        )?;
+        Ok(())
+    }
 }
 
-/// Open an in-memory database for testing purposes.
-#[cfg(test)]
-pub fn open_database_in_memory() -> Result<Connection, rusqlite::Error> {
-    let conn = Connection::open_in_memory()?;
-    conn.execute_batch("PRAGMA foreign_keys = ON;",)?;
+/// Create a connection pool for the server SQLite database and run migrations.
+pub fn create_pool(path: &Path) -> Result<DbPool, Box<dyn std::error::Error>> {
+    let manager = SqliteConnectionManager::file(path);
+    let pool = Pool::builder()
+        .max_size(8)
+        .connection_customizer(Box::new(SqliteInit))
+        .build(manager)?;
+
+    // Run migrations on one connection
+    let conn = pool.get()?;
     run_migrations(&conn)?;
-    Ok(conn)
+
+    Ok(pool)
+}
+
+/// Create an in-memory pool for testing (single connection to share state).
+#[cfg(test)]
+pub fn create_pool_in_memory() -> Result<DbPool, Box<dyn std::error::Error>> {
+    let manager = SqliteConnectionManager::memory();
+    let pool = Pool::builder()
+        .max_size(1)
+        .connection_customizer(Box::new(SqliteInit))
+        .build(manager)?;
+
+    let conn = pool.get()?;
+    run_migrations(&conn)?;
+
+    Ok(pool)
 }
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {

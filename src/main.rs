@@ -6,8 +6,6 @@ mod middleware;
 mod models;
 mod routes;
 
-use std::sync::Mutex;
-
 use actix_web::{web, App, HttpServer};
 
 #[actix_web::main]
@@ -23,10 +21,10 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting SaladVault API server on {bind_addr}");
 
-    // Open database
-    let conn = db::open_database(&config.db_path)
-        .expect("Failed to open server database");
-    let db_data = web::Data::new(Mutex::new(conn));
+    // Open database connection pool
+    let pool = db::create_pool(&config.db_path)
+        .expect("Failed to create database connection pool");
+    let db_data = web::Data::new(pool);
     let config_data = web::Data::new(config.clone());
 
     // Spawn Dead Man's Switch background checker (every hour)

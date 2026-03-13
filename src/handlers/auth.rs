@@ -16,7 +16,7 @@ use crate::models::{
     MfaSetupResponse, MfaVerifyRequest, RefreshRequest, RegisterRequest,
 };
 
-type DbPool = web::Data<std::sync::Mutex<rusqlite::Connection>>;
+type DbPool = web::Data<crate::db::DbPool>;
 
 // ── Auth Handlers ──
 
@@ -36,7 +36,7 @@ pub async fn register(
     body: web::Json<RegisterRequest>,
 ) -> Result<HttpResponse, ApiError> {
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     // Check if user already exists
@@ -108,7 +108,7 @@ pub async fn mfa_setup_confirm(
     body: web::Json<MfaSetupConfirmRequest>,
 ) -> Result<HttpResponse, ApiError> {
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let token_hash = hash_token(&body.mfa_setup_token);
@@ -196,7 +196,7 @@ pub async fn login(
     body: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, ApiError> {
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     // Fetch stored auth_hash
@@ -250,7 +250,7 @@ pub async fn mfa_verify(
     body: web::Json<MfaVerifyRequest>,
 ) -> Result<HttpResponse, ApiError> {
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let token_hash = hash_token(&body.mfa_challenge_token);
@@ -337,7 +337,7 @@ pub async fn refresh(
     body: web::Json<RefreshRequest>,
 ) -> Result<HttpResponse, ApiError> {
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let refresh_hash = hash_token(&body.refresh_token);
@@ -398,7 +398,7 @@ pub async fn logout(
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     conn.execute(
@@ -420,7 +420,7 @@ pub async fn get_salt(
 ) -> Result<HttpResponse, ApiError> {
     let blind_id = path.into_inner();
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let salt_bytes: Vec<u8> = conn
@@ -578,9 +578,9 @@ fn cleanup_orphan_registration(
 /// Cleanup orphaned registrations (called periodically from background task).
 /// Deletes users whose MFA was never enabled and whose setup token has expired.
 pub fn cleanup_orphan_registrations(
-    conn: &std::sync::Mutex<rusqlite::Connection>,
+    pool: &crate::db::DbPool,
 ) {
-    let Ok(conn) = conn.lock() else { return };
+    let Ok(conn) = pool.get() else { return };
     let result = conn.execute_batch(
         "DELETE FROM server_users WHERE blind_id IN (
             SELECT ms.blind_id FROM mfa_secrets ms

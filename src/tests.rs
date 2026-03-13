@@ -3,8 +3,6 @@
 //! Uses actix_web::test with an in-memory SQLite database.
 //! Tests the full flow: health → register → MFA confirm → login → sync.
 
-use std::sync::Mutex;
-
 use actix_web::{test, web, App};
 use base64::Engine;
 use hmac::{Hmac, Mac};
@@ -61,8 +59,8 @@ fn decrypt_totp_secret(data: &[u8], key: &[u8; 32]) -> Vec<u8> {
 
 #[actix_web::test]
 async fn test_health_endpoint() {
-    let conn = db::open_database_in_memory().unwrap();
-    let db_data = web::Data::new(Mutex::new(conn));
+    let pool = db::create_pool_in_memory().unwrap();
+    let db_data = web::Data::new(pool);
     let config_data = web::Data::new(test_config());
     let app = test::init_service(
         App::new()
@@ -82,8 +80,8 @@ async fn test_health_endpoint() {
 
 #[actix_web::test]
 async fn test_register_duplicate_rejected() {
-    let conn = db::open_database_in_memory().unwrap();
-    let db_data = web::Data::new(Mutex::new(conn));
+    let pool = db::create_pool_in_memory().unwrap();
+    let db_data = web::Data::new(pool);
     let config_data = web::Data::new(test_config());
     let app = test::init_service(
         App::new()
@@ -121,8 +119,8 @@ async fn test_register_duplicate_rejected() {
 
 #[actix_web::test]
 async fn test_full_register_mfa_login_sync_flow() {
-    let conn = db::open_database_in_memory().expect("Failed to open in-memory database");
-    let db_data = web::Data::new(Mutex::new(conn));
+    let pool = db::create_pool_in_memory().expect("Failed to create in-memory pool");
+    let db_data = web::Data::new(pool);
     let config = test_config();
     let config_data = web::Data::new(config.clone());
 
@@ -154,7 +152,7 @@ async fn test_full_register_mfa_login_sync_flow() {
 
     // ── Step 2: Retrieve TOTP secret from DB and generate valid code ──
     let totp_secret = {
-        let conn = db_data.lock().unwrap();
+        let conn = db_data.get().unwrap();
         let enc: Vec<u8> = conn
             .query_row(
                 "SELECT totp_secret_enc FROM mfa_secrets WHERE blind_id = ?1",
@@ -269,8 +267,8 @@ async fn test_full_register_mfa_login_sync_flow() {
 
 #[actix_web::test]
 async fn test_sync_without_auth_rejected() {
-    let conn = db::open_database_in_memory().unwrap();
-    let db_data = web::Data::new(Mutex::new(conn));
+    let pool = db::create_pool_in_memory().unwrap();
+    let db_data = web::Data::new(pool);
     let config_data = web::Data::new(test_config());
     let app = test::init_service(
         App::new()
@@ -288,8 +286,8 @@ async fn test_sync_without_auth_rejected() {
 
 #[actix_web::test]
 async fn test_login_nonexistent_user_rejected() {
-    let conn = db::open_database_in_memory().unwrap();
-    let db_data = web::Data::new(Mutex::new(conn));
+    let pool = db::create_pool_in_memory().unwrap();
+    let db_data = web::Data::new(pool);
     let config_data = web::Data::new(test_config());
     let app = test::init_service(
         App::new()
