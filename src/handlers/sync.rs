@@ -7,7 +7,7 @@ use crate::error::ApiError;
 use crate::handlers::auth::extract_blind_id_from_request;
 use crate::models::{SyncPushRequest, SyncStatusResponse, SyncVaultResponse};
 
-type DbPool = web::Data<std::sync::Mutex<rusqlite::Connection>>;
+type DbPool = web::Data<crate::db::DbPool>;
 
 /// GET /sync/vault
 ///
@@ -22,7 +22,7 @@ pub async fn get_vault(
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let row: (Vec<u8>, i64, String) = conn
@@ -61,7 +61,7 @@ pub async fn put_vault(
         .map_err(|_| ApiError::BadRequest("Invalid base64 vault_blob".to_string()))?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     // Check current version (if any)
@@ -127,7 +127,7 @@ pub async fn sync_status(
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let row: Option<(i64, String)> = conn

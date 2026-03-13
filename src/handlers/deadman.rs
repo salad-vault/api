@@ -7,7 +7,7 @@ use crate::error::ApiError;
 use crate::handlers::auth::extract_blind_id_from_request;
 use crate::models::{DeadmanConfigRequest, DeadmanStatusResponse, HeartbeatResponse};
 
-type DbPool = web::Data<std::sync::Mutex<rusqlite::Connection>>;
+type DbPool = web::Data<crate::db::DbPool>;
 
 /// POST /deadman/heartbeat
 ///
@@ -22,7 +22,7 @@ pub async fn heartbeat(
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     conn.execute(
@@ -53,7 +53,7 @@ pub async fn status(
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let last_seen_at: String = conn
@@ -108,7 +108,7 @@ pub async fn update_config(
         .and_then(|b64| base64::engine::general_purpose::STANDARD.decode(b64).ok());
 
     let conn = db
-        .lock()
+        .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     conn.execute(
@@ -138,11 +138,11 @@ pub async fn update_config(
 /// This function is meant to be called periodically (e.g. every hour)
 /// from a background task spawned at server startup.
 pub async fn check_deadman_triggers(
-    db: &std::sync::Mutex<rusqlite::Connection>,
+    db: &crate::db::DbPool,
     config: &Config,
 ) {
     let results = {
-        let conn = match db.lock() {
+        let conn = match db.get() {
             Ok(c) => c,
             Err(_) => return,
         };
@@ -201,7 +201,7 @@ pub async fn check_deadman_triggers(
             // Send email
             if send_recovery_email(config, &recipient_email, &recovery_blob).await {
                 // Mark as triggered so we don't send again
-                if let Ok(conn) = db.lock() {
+                if let Ok(conn) = db.get() {
                     let _ = conn.execute(
                         "UPDATE deadman_config SET triggered = 1 WHERE blind_id = ?1",
                         params![blind_id],
