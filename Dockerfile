@@ -38,8 +38,8 @@ RUN useradd --system --no-create-home --shell /usr/sbin/nologin appuser
 WORKDIR /app
 
 # Volume pour la base de données SQLite (persistance entre redémarrages)
+RUN mkdir -p /data && chown appuser:appuser /data
 VOLUME ["/data"]
-RUN chown appuser:appuser /data
 
 COPY --from=builder /app/target/release/saladvault-api /usr/local/bin/saladvault-api
 
