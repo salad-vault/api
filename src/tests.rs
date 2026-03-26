@@ -27,6 +27,9 @@ fn test_config() -> Config {
         smtp_pass: String::new(),
         smtp_from: "test@saladvault.com".to_string(),
         mfa_encryption_key: [0x42u8; 32],
+        stripe_secret_key: String::new(),
+        stripe_webhook_secret: String::new(),
+        stripe_price_id_maraicher: String::new(),
     }
 }
 
@@ -209,6 +212,15 @@ async fn test_full_register_mfa_login_sync_flow() {
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = test::read_body_json(resp).await;
     let access_token = body["access_token"].as_str().unwrap().to_string();
+
+    // ── Step 5b: Insert active subscription for sync tests ──
+    {
+        let conn = db_data.get().unwrap();
+        conn.execute(
+            "INSERT INTO subscriptions (blind_id, stripe_customer_id, plan, status) VALUES (?1, 'cus_test', 'maraicher', 'active')",
+            rusqlite::params![blind_id],
+        ).unwrap();
+    }
 
     // ── Step 6: Sync — push a vault blob ──
     let vault_data = b64.encode(b"encrypted_vault_data_here");

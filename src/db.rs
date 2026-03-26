@@ -103,6 +103,29 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             attempt_count   INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (blind_id) REFERENCES server_users(blind_id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            blind_id                TEXT PRIMARY KEY,
+            stripe_customer_id      TEXT NOT NULL,
+            stripe_subscription_id  TEXT,
+            plan                    TEXT NOT NULL DEFAULT 'jardinier',
+            status                  TEXT NOT NULL DEFAULT 'inactive',
+            trial_end               TEXT,
+            current_period_end      TEXT,
+            created_at              TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at              TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (blind_id) REFERENCES server_users(blind_id) ON DELETE CASCADE
+        );
+
+
+        CREATE TABLE IF NOT EXISTS email_verifications (
+            blind_id        TEXT PRIMARY KEY,
+            code_hash       TEXT NOT NULL,
+            expires_at      TEXT NOT NULL,
+            verified        INTEGER NOT NULL DEFAULT 0,
+            attempt_count   INTEGER NOT NULL DEFAULT 0,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
         ",
     )?;
 

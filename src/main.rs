@@ -6,6 +6,7 @@ mod middleware;
 mod models;
 mod routes;
 
+use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 
 #[actix_web::main]
@@ -49,7 +50,19 @@ async fn main() -> std::io::Result<()> {
     }
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin_fn(|origin, _req_head| {
+                let o = origin.as_bytes();
+                o.starts_with(b"chrome-extension://")
+                    || o.starts_with(b"moz-extension://")
+                    || o.starts_with(b"ms-browser-extension://")
+            })
+            .allowed_methods(vec!["GET", "POST", "PUT"])
+            .allowed_headers(vec!["Authorization", "Content-Type"])
+            .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .app_data(db_data.clone())
             .app_data(config_data.clone())
             .configure(routes::configure)

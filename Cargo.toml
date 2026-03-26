@@ -30,3 +30,5 @@ hex = "0.4"
 sha1 = "0.10"
 aes-gcm = "0.10"
 data-encoding = "2"
+reqwest = { version = "0.12", features = ["json"] }
+actix-cors = "0.7"

@@ -103,3 +103,59 @@ pub struct MfaVerifyRequest {
     pub mfa_challenge_token: String,
     pub totp_code: String,
 }
+
+// ── Account Deletion ──
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteAccountRequest {
+    pub totp_code: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeleteAccountResponse {
+    pub deleted: bool,
+}
+
+// ── Email Verification ──
+
+#[derive(Debug, Deserialize)]
+pub struct SendVerificationCodeRequest {
+    pub blind_id: String,
+    pub email: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SendVerificationCodeResponse {
+    pub sent: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VerifyCodeRequest {
+    pub blind_id: String,
+    pub code: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VerifyCodeResponse {
+    pub verified: bool,
+}
+
+// ── Subscription ──
+
+#[derive(Debug, Serialize)]
+pub struct SubscriptionStatusResponse {
+    pub plan: String,
+    pub status: String,
+    pub trial_end: Option<String>,
+    pub current_period_end: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CheckoutSessionResponse {
+    pub checkout_url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PortalSessionResponse {
+    pub portal_url: String,
+}

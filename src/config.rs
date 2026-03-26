@@ -27,6 +27,12 @@ pub struct Config {
     pub smtp_from: String,
     /// 32-byte key for encrypting TOTP secrets at rest (hex-encoded in env)
     pub mfa_encryption_key: [u8; 32],
+    /// Stripe secret API key
+    pub stripe_secret_key: String,
+    /// Stripe webhook signing secret
+    pub stripe_webhook_secret: String,
+    /// Stripe Price ID for Maraicher Pro plan
+    pub stripe_price_id_maraicher: String,
 }
 
 impl Config {
@@ -60,6 +66,9 @@ impl Config {
             smtp_pass: std::env::var("SMTP_PASS").unwrap_or_default(),
             smtp_from: std::env::var("SMTP_FROM")
                 .unwrap_or_else(|_| "noreply@saladvault.com".to_string()),
+            stripe_secret_key: std::env::var("STRIPE_SECRET_KEY").unwrap_or_default(),
+            stripe_webhook_secret: std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default(),
+            stripe_price_id_maraicher: std::env::var("STRIPE_PRICE_ID_MARAICHER").unwrap_or_default(),
             mfa_encryption_key: {
                 let key_hex = std::env::var("MFA_ENCRYPTION_KEY").unwrap_or_else(|_| {
                     "0000000000000000000000000000000000000000000000000000000000000000"

@@ -5,6 +5,7 @@ use rusqlite::params;
 use crate::config::Config;
 use crate::error::ApiError;
 use crate::handlers::auth::extract_blind_id_from_request;
+use crate::handlers::subscription::require_active_subscription;
 use crate::models::{SyncPushRequest, SyncStatusResponse, SyncVaultResponse};
 
 type DbPool = web::Data<crate::db::DbPool>;
@@ -24,6 +25,8 @@ pub async fn get_vault(
     let conn = db
         .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+    require_active_subscription(&conn, &blind_id)?;
 
     let row: (Vec<u8>, i64, String) = conn
         .query_row(
@@ -56,13 +59,15 @@ pub async fn put_vault(
 ) -> Result<HttpResponse, ApiError> {
     let blind_id = extract_blind_id_from_request(&req, &config)?;
 
-    let vault_bytes = base64::engine::general_purpose::STANDARD
-        .decode(&body.vault_blob)
-        .map_err(|_| ApiError::BadRequest("Invalid base64 vault_blob".to_string()))?;
-
     let conn = db
         .get()
         .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+    require_active_subscription(&conn, &blind_id)?;
+
+    let vault_bytes = base64::engine::general_purpose::STANDARD
+        .decode(&body.vault_blob)
+        .map_err(|_| ApiError::BadRequest("Invalid base64 vault_blob".to_string()))?;
 
     // Check current version (if any)
     let current_version: Option<i64> = conn
