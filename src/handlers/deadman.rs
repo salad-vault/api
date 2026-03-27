@@ -258,7 +258,7 @@ async fn send_recovery_email(config: &Config, recipient: &str, recovery_blob: &[
 
     let creds = Credentials::new(config.smtp_user.clone(), config.smtp_pass.clone());
 
-    let mailer = match AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host) {
+    let mailer = match AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp_host) {
         Ok(builder) => builder
             .port(config.smtp_port)
             .credentials(creds)

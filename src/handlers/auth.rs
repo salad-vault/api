@@ -693,7 +693,7 @@ async fn send_verification_email(config: &Config, recipient: &str, code: &str) -
 
     let creds = Credentials::new(config.smtp_user.clone(), config.smtp_pass.clone());
 
-    let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host)
+    let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp_host)
         .map_err(|e| ApiError::Internal(format!("SMTP relay error: {e}")))?
         .port(config.smtp_port)
         .credentials(creds)
